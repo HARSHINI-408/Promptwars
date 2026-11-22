@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { LayoutDashboard, ReceiptText, PiggyBank, GraduationCap, BriefcaseBusiness, Sparkles, Calculator, BarChart3, Settings, Bell, Search, Plus, ArrowUpRight, ChevronDown, WalletCards, Utensils, Bus, BookOpen, MoreHorizontal, Menu, X, Send, Target, Clock3 } from 'lucide-react';
 import { LineChart, Line, ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
 
@@ -18,8 +18,18 @@ const transactions=[
 
 function App(){
  const [active,setActive]=useState('Overview'); const [collapsed,setCollapsed]=useState(false); const [modal,setModal]=useState(false); const [toast,setToast]=useState('');
- const [amount,setAmount]=useState('');
- function addExpense(){ if(!amount)return; setModal(false); setToast('Expense added successfully'); setAmount(''); setTimeout(()=>setToast(''),2600); }
+ const [amount,setAmount]=useState(''); const [description,setDescription]=useState(''); const [category,setCategory]=useState('Food & Dining'); const [transactionType,setTransactionType]=useState('Expense'); const [date,setDate]=useState('2026-11-22');
+ const [userTransactions,setUserTransactions]=useState(()=>{
+  try { return JSON.parse(localStorage.getItem('campuscash-transactions')) || []; } catch { return []; }
+ });
+ useEffect(()=>{ localStorage.setItem('campuscash-transactions',JSON.stringify(userTransactions)); },[userTransactions]);
+ function addExpense(){
+  if(!amount || Number(amount)<=0)return;
+  const isIncome=transactionType==='Income';
+  const icon=isIncome?WalletCards:category==='Transport'?Bus:category==='Education'?BookOpen:Utensils;
+  const item={icon,name:description.trim()||category,meta:`${category} • ${date}`,amount:`${isIncome?'+':'-'} ₹${Number(amount).toLocaleString('en-IN')}`,tone:isIncome?'green':category==='Transport'?'lime':category==='Education'?'pink':'purple'};
+  setUserTransactions(items=>[item,...items]); setModal(false); setToast(`${transactionType} added successfully`); setAmount(''); setDescription(''); setTimeout(()=>setToast(''),2600);
+ }
  return <div className={`app ${collapsed?'collapsed':''}`}>
   <aside>
    <div className="brand"><div className="brandmark">C</div>{!collapsed&&<div><b>CampusCash</b><span>STUDENT FINANCE</span></div>}</div>
@@ -40,30 +50,46 @@ function App(){
     <section className="grid">
      <div className="card spending"><div className="cardhead"><div><h3>Spending overview</h3><p>Daily expenses this week</p></div><button>Week <ChevronDown size={14}/></button></div><div className="chartwrap"><ResponsiveContainer width="100%" height="100%"><LineChart data={trend}><defs><linearGradient id="line" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#8b5cf6" stopOpacity=".18"/><stop offset="100%" stopColor="#8b5cf6" stopOpacity="0"/></linearGradient></defs><Tooltip/><Line type="monotone" dataKey="v" stroke="#8b5cf6" strokeWidth={3} dot={{r:4,fill:'#fff',strokeWidth:2}} activeDot={{r:6}}/></LineChart></ResponsiveContainer></div></div>
      <div className="card breakdown"><div className="cardhead"><div><h3>Expense breakdown</h3><p>November 2026</p></div><button className="dots"><MoreHorizontal size={18}/></button></div><div className="piebox"><div className="pie"><ResponsiveContainer><PieChart><Pie data={categories} innerRadius={58} outerRadius={78} paddingAngle={3} dataKey="value">{categories.map((c,i)=><Cell key={i} fill={c.color}/>)}</Pie></PieChart></ResponsiveContainer><div className="pietotal"><b>₹4,000</b><span>total</span></div></div><div className="legend">{categories.map(c=><div key={c.name}><i style={{background:c.color}}/><span>{c.name}</span><b>{c.amount}</b></div>)}</div></div></div>
-     <div className="card transactions"><div className="cardhead"><div><h3>Recent transactions</h3><p>Your latest activity</p></div><button onClick={()=>setActive('Transactions')}>View all <ArrowUpRight size={14}/></button></div>{transactions.map((t,i)=><div className="tx" key={i}><div className={`txicon ${t.tone}`}><t.icon size={18}/></div><div><b>{t.name}</b><span>{t.meta}</span></div><strong className={t.amount[0]==='+'?'income':''}>{t.amount}</strong></div>)}</div>
+     <div className="card transactions"><div className="cardhead"><div><h3>Recent transactions</h3><p>Your latest activity</p></div><button onClick={()=>setActive('Transactions')}>View all <ArrowUpRight size={14}/></button></div>{[...userTransactions,...transactions].slice(0,4).map((t,i)=><div className="tx" key={i}><div className={`txicon ${t.tone}`}><t.icon size={18}/></div><div><b>{t.name}</b><span>{t.meta}</span></div><strong className={t.amount[0]==='+'?'income':''}>{t.amount}</strong></div>)}</div>
      <div className="card wellness"><div className="cardhead"><div><h3>Financial wellness</h3><p>Healthy habits, better future</p></div><span className="scorebadge">Good</span></div><div className="score"><div className="ring"><b>72</b><span>/100</span></div><div className="scoretext"><b>You're doing well!</b><p>Your score improved by 8 points this month.</p><div className="good"><ArrowUpRight size={14}/> 8 pts this month</div></div></div></div>
     </section>
     <section className="bottomgrid"><div className="goal card"><div className="cardhead"><div><h3>Savings goal</h3><p>Buy a new laptop</p></div><button onClick={()=>setActive('Savings Goals')}>Manage <ArrowUpRight size={14}/></button></div><div className="goalbody"><div className="goalicon"><Target size={22}/></div><div className="goalprogress"><div><b>₹4,000 <span>of ₹15,000</span></b><b>27%</b></div><div className="bar"><i/></div><p><Clock3 size={14}/> 4 months left • ₹2,750/month recommended</p></div></div></div><div className="insight card"><div className="aiicon"><Sparkles size={21}/></div><div><span>CAMPUSCASH AI</span><h3>You could save ₹640 more this month</h3><p>Food spending is 18% above your usual range. Try 2 campus café meals at home.</p><button onClick={()=>setActive('AI Assistant')}>View insights <ArrowUpRight size={15}/></button></div></div></section>
-    </>:<Page active={active} setActive={setActive} setModal={setModal}/>}
+    </>:<Page active={active} setActive={setActive} setModal={setModal} userTransactions={userTransactions}/>}
    </div>
   </main>
-  {modal&&<div className="overlay" onMouseDown={()=>setModal(false)}><div className="modal" onMouseDown={e=>e.stopPropagation()}><button className="close" onClick={()=>setModal(false)}><X size={18}/></button><h2>Add transaction</h2><p>Record a quick expense or income</p><div className="tabs"><b className="selected">Expense</b><b>Income</b></div><label>Amount<input value={amount} onChange={e=>setAmount(e.target.value)} placeholder="₹ 0" type="number"/></label><label>Description<input placeholder="e.g. Lunch at campus café"/></label><div className="modalgrid"><label>Category<select><option>Food & Dining</option><option>Transport</option><option>Education</option></select></label><label>Date<input type="date" defaultValue="2026-11-22"/></label></div><button className="save" onClick={addExpense}>Save transaction</button></div></div>}
+  {modal&&<div className="overlay" onMouseDown={()=>setModal(false)}><div className="modal" onMouseDown={e=>e.stopPropagation()}><button className="close" onClick={()=>setModal(false)}><X size={18}/></button><h2>Add transaction</h2><p>Record a quick expense or income</p><div className="tabs"><b className={transactionType==='Expense'?'selected':''} onClick={()=>setTransactionType('Expense')}>Expense</b><b className={transactionType==='Income'?'selected':''} onClick={()=>setTransactionType('Income')}>Income</b></div><label>Amount<input value={amount} onChange={e=>setAmount(e.target.value)} placeholder="₹ 0" type="number"/></label><label>Description<input value={description} onChange={e=>setDescription(e.target.value)} placeholder="e.g. Lunch at campus café"/></label><div className="modalgrid"><label>Category<select value={category} onChange={e=>setCategory(e.target.value)}><option>Food & Dining</option><option>Transport</option><option>Education</option><option>Pocket Money</option></select></label><label>Date<input type="date" value={date} onChange={e=>setDate(e.target.value)}/></label></div><button className="save" onClick={addExpense}>Save transaction</button></div></div>}
   {toast&&<div className="toast">✓ {toast}</div>}
  </div>
 }
 function Stat({title,value,change,color,children}){return <div className="stat card"><div className={`staticon ${color}`}>{children}</div><div><p>{title}</p><h2>{value}</h2><span>{change}</span></div></div>}
 
-function Page({active,setActive,setModal}){
+function Page({active,setActive,setModal,userTransactions=[]}){
  const [question,setQuestion]=useState('');
  const [answer,setAnswer]=useState('');
+ const [aiLoading,setAiLoading]=useState(false);
  const [purchase,setPurchase]=useState('5000');
  const [futureIncome,setFutureIncome]=useState('8000');
  const [upcoming,setUpcoming]=useState('5200');
  const remaining=5800-Number(purchase||0)+Number(futureIncome||0)-Number(upcoming||0);
+ async function askAI(message){
+  if(!message.trim())return;
+  setAiLoading(true);
+  try{
+   const response=await fetch('/api/ai/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message})});
+   if(!response.ok)throw new Error('AI request failed');
+   const data=await response.json();
+   setAnswer(data.answer||'I could not generate a response.');
+  }catch{
+   const lower=message.toLower();
+   if(lower.includes('save')||lower.includes('laptop'))setAnswer('To reach your ₹15,000 laptop goal from ₹4,000, save ₹2,750 per month for 4 months.');
+   else if(lower.includes('5000')||lower.includes('afford'))setAnswer('A ₹5,000 purchase from your ₹5,800 balance would leave about ₹800. This is high risk; keep at least ₹1,000 for planned costs.');
+   else setAnswer('Based on your ₹8,000 income, ₹5,200 expenses, ₹4,000 savings, and ₹5,800 balance, keep a ₹1,000 buffer and consider adding ₹600–₹800 to your laptop goal.');
+  }finally{setAiLoading(false);}
+ }
  const title=active;
  let body;
  if(active==='Transactions'){
-  body=<div className="card pagecard"><div className="cardhead"><div><h3>All transactions</h3><p>November 2026 activity</p></div><button onClick={()=>setModal(true)}><Plus size={14}/> Add new</button></div><div className="table">{transactions.map((t,i)=><div className="table-row" key={i}><div className={`txicon ${t.tone}`}><t.icon size={18}/></div><div><b>{t.name}</b><span>{t.meta}</span></div><strong className={t.amount[0]==='+'?'income':''}>{t.amount}</strong></div>)}</div></div>;
+  body=<div className="card pagecard"><div className="cardhead"><div><h3>All transactions</h3><p>November 2026 activity</p></div><button onClick={()=>setModal(true)}><Plus size={14}/> Add new</button></div><div className="table">{[...userTransactions,...transactions].map((t,i)=><div className="table-row" key={i}><div className={`txicon ${t.tone}`}><t.icon size={18}/></div><div><b>{t.name}</b><span>{t.meta}</span></div><strong className={t.amount[0]==='+'?'income':''}>{t.amount}</strong></div>)}</div></div>;
  } else if(active==='Savings Goals'){
   body=<div className="card pagecard"><div className="cardhead"><div><h3>Buy a new laptop</h3><p>Target date: March 2027</p></div><span className="scorebadge">27% complete</span></div><div className="goalbody largegoal"><div className="goalicon"><Target size={25}/></div><div className="goalprogress"><div><b>₹4,000 <span>of ₹15,000</span></b><b>₹11,000 remaining</b></div><div className="bar"><i/></div><p><Clock3 size={14}/> Recommended contribution: ₹2,750 per month</p></div></div><button className="primary-page-btn" onClick={()=>setModal(true)}>Add savings contribution</button></div>;
  } else if(active==='Scholarships'){
@@ -71,7 +97,7 @@ function Page({active,setActive,setModal}){
  } else if(active==='Opportunities'){
   body=<div className="card pagecard"><div className="cardhead"><div><h3>Student opportunities</h3><p>Flexible options for students</p></div></div><div className="item-list"><div className="list-item"><div className="listicon blue"><BriefcaseBusiness size={20}/></div><div><b>Campus Ambassador</b><span>Remote • Flexible hours • Verified demo listing</span></div><strong>Student role</strong><button onClick={()=>window.open('#')}>Details</button></div></div></div>;
  } else if(active==='AI Assistant'){
-  body=<div className="card pagecard ai-page"><div className="cardhead"><div><h3>CampusCash AI</h3><p>Personal finance guidance</p></div><span className="scorebadge">Demo</span></div><div className="ai-answer">{answer||'Ask about your savings, budget, or an upcoming purchase.'}</div><div className="prompt-suggestions"><button onClick={()=>setAnswer('To reach your ₹15,000 laptop goal from ₹4,000, save ₹2,750 per month for 4 months.')}>How can I reach my savings goal?</button><button onClick={()=>setAnswer('Your ₹5,800 balance covers ₹5,200 of monthly expenses, so keep at least ₹1,000 as a safety buffer.')}>Is ₹5,800 enough this month?</button></div><div className="ai-input"><input value={question} onChange={e=>setQuestion(e.target.value)} placeholder="Ask CampusCash AI..."/><button onClick={()=>setAnswer(question ? 'Based on your current finances: ₹8,000 income, ₹5,200 expenses, ₹4,000 savings, and ₹5,800 balance. ' + question : 'Please enter a question.')}><Send size={18}/></button></div></div>;
+  body=<div className="card pagecard ai-page"><div className="cardhead"><div><h3>CampusCash AI</h3><p>Personal finance guidance</p></div><span className="scorebadge">Live</span></div><div className="ai-answer">{aiLoading?'Thinking about your finances...':answer||'Ask about your savings, budget, or an upcoming purchase.'}</div><div className="prompt-suggestions"><button onClick={()=>askAI('How can I reach my savings goal?')}>How can I reach my savings goal?</button><button onClick={()=>askAI('Is ₹5,800 enough this month?')}>Is ₹5,800 enough this month?</button></div><div className="ai-input"><input value={question} onChange={e=>setQuestion(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')askAI(question)}} placeholder="Ask CampusCash AI..."/><button onClick={()=>askAI(question)}><Send size={18}/></button></div></div>;
  } else if(active==='What-if Simulator'){
   body=<div className="grid simulator-grid"><div className="card pagecard"><div className="cardhead"><div><h3>What-if Simulator</h3><p>Estimate your balance after a purchase</p></div></div><label>Current balance<input type="number" value="5800" readOnly/></label><label>Purchase amount<input type="number" value={purchase} onChange={e=>setPurchase(e.target.value)}/></label><label>Future income<input type="number" value={futureIncome} onChange={e=>setFutureIncome(e.target.value)}/></label><label>Upcoming expenses<input type="number" value={upcoming} onChange={e=>setUpcoming(e.target.value)}/></label></div><div className="card result-card"><span>ESTIMATED REMAINING</span><h2>₹{remaining.toLocaleString('en-IN')}</h2><p className={remaining<1000?'risk-high':remaining<3000?'risk-medium':'risk-low'}>{remaining<1000?'High risk':remaining<3000?'Moderate risk':'Low risk'} financial impact</p><div className="bar"><i style={{width:`${Math.max(5,Math.min(100,remaining/58))}%`}}/></div></div></div>;
  } else if(active==='Reports'){
