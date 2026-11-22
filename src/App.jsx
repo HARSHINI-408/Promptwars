@@ -20,15 +20,38 @@ function App(){
  const [active,setActive]=useState('Overview'); const [collapsed,setCollapsed]=useState(false); const [modal,setModal]=useState(false); const [toast,setToast]=useState('');
  const [amount,setAmount]=useState(''); const [description,setDescription]=useState(''); const [category,setCategory]=useState('Food & Dining'); const [transactionType,setTransactionType]=useState('Expense'); const [date,setDate]=useState('2026-11-22');
  const [userTransactions,setUserTransactions]=useState(()=>{
-  try { return JSON.parse(localStorage.getItem('campuscash-transactions')) || []; } catch { return []; }
+  return [];
  });
- useEffect(()=>{ localStorage.setItem('campuscash-transactions',JSON.stringify(userTransactions)); },[userTransactions]);
- function addExpense(){
+ useEffect(()=>{
+  fetch('/api/transactions')
+   .then(response=>response.ok?response.json():Promise.reject())
+   .then(result=>{
+    const items=(result.data||[]).map(item=>({
+     icon:item.type==='Income'?WalletCards:item.category==='Transport'?Bus:item.category==='Education'?BookOpen:Utensils,
+     name:item.name,
+     meta:`${item.category} • ${item.date}`,
+     amount:`${item.type==='Income'?'+':'-'} ₹${Number(item.amount).toLocaleString('en-IN')}`,
+     tone:item.type==='Income'?'green':item.category==='Transport'?'lime':item.category==='Education'?'pink':'purple'
+    }));
+    setUserTransactions(items);
+   })
+   .catch(()=>setUserTransactions([]));
+ },[]);
+ async function addExpense(){
   if(!amount || Number(amount)<=0)return;
-  const isIncome=transactionType==='Income';
-  const icon=isIncome?WalletCards:category==='Transport'?Bus:category==='Education'?BookOpen:Utensils;
-  const item={icon,name:description.trim()||category,meta:`${category} • ${date}`,amount:`${isIncome?'+':'-'} ₹${Number(amount).toLocaleString('en-IN')}`,tone:isIncome?'green':category==='Transport'?'lime':category==='Education'?'pink':'purple'};
-  setUserTransactions(items=>[item,...items]); setModal(false); setToast(`${transactionType} added successfully`); setAmount(''); setDescription(''); setTimeout(()=>setToast(''),2600);
+  try{
+   const response=await fetch('/api/transactions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:description.trim()||category,description:description.trim(),category,type:transactionType,amount:Number(amount),date})});
+   if(!response.ok)throw new Error('Could not save');
+   const item=await response.json();
+   const isIncome=item.type==='Income';
+   const icon=isIncome?WalletCards:item.category==='Transport'?Bus:item.category==='Education'?BookOpen:Utensils;
+   const display={icon,name:item.name,meta:`${item.category} • ${item.date}`,amount:`${isIncome?'+':'-'} ₹${Number(item.amount).toLocaleString('en-IN')}`,tone:isIncome?'green':item.category==='Transport'?'lime':item.category==='Education'?'pink':'purple'};
+   setUserTransactions(items=>[display,...items]);
+   setModal(false); setToast(`${transactionType} added successfully`); setAmount(''); setDescription(''); setTimeout(()=>setToast(''),2600);
+  }catch{
+   setToast('Could not save transaction. Database is not configured.');
+   setTimeout(()=>setToast(''),2600);
+  }
  }
  return <div className={`app ${collapsed?'collapsed':''}`}>
   <aside>
