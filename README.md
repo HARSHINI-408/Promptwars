@@ -1,4 +1,4 @@
-# CampusCash
+# Promptwars - CampusCash
 
 Student-first financial dashboard built with React, Vite, Express, and MongoDB.
 
